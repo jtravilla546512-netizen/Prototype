@@ -112,11 +112,11 @@ if analyze:
     context_text = " ".join(previous + following)
 
     steps = [
-        "Reading and segmenting the article into sentences",
-        "Locating the target sentence in the article",
-        "Collecting up to four sentences before and after the target",
-        "Preparing target and context representations for gated fusion",
-        "Producing the sentence-level bias label",
+        f"Reading the article and splitting it into {len(article_sentences)} ordered sentences",
+        "Matching the target sentence to its location in the article",
+        "Selecting up to four preceding and four following sentences",
+        "Applying the target–context gated fusion pathway",
+        "Passing the fused representation to the two-class classifier",
     ]
     with analysis_panel:
         progress = st.progress(0, text="Starting analysis…")
@@ -138,6 +138,31 @@ if analyze:
             context_text = article_text
         else:
             st.success(f"Target located in article sentence {target_index + 1} of {len(article_sentences)}.")
+
+        st.markdown("**Input path**")
+        st.code(
+            f"Target x_t: {target_sentence.strip()}\n"
+            f"Article sentences: {len(article_sentences)}\n"
+            f"Context before: {len(previous)} sentence(s)\n"
+            f"Context after: {len(following)} sentence(s)\n"
+            "Notebook 04 limits: target 128 tokens; context 384 tokens",
+            language="text",
+        )
+        st.caption(
+            "When both context sides are available, notebook 04 tokenizes preceding and following text as a paired input; "
+            "otherwise it tokenizes the available side."
+        )
+
+        st.markdown("**Gated Hierarchical Context Fusion — equations from the paper and notebook 04**")
+        st.latex(r"h_t = \operatorname{Encoder}(x_t, <s>),\quad h_c = \operatorname{Encoder}(x_c, <s>)\quad h_t,h_c\in\mathbb{R}^{768}")
+        st.latex(r"p_c = \tanh(W_c h_c + b_c)")
+        st.latex(r"g = \sigma(W_g [h_t; p_c] + b_g)")
+        st.latex(r"h_f = \operatorname{LayerNorm}(h_t + g \odot p_c)")
+        st.latex(r"z = \operatorname{ClassifierHead}(h_f),\quad p = \operatorname{softmax}(z),\quad \hat{y}=\arg\max_k p_k")
+        st.caption(
+            "This screen illustrates the trained model’s computation graph. It does not calculate the learned vectors, gate values, "
+            "or classifier logits because trained checkpoints are not connected to this prototype."
+        )
 
         label, biased_score, nonbiased_score = simulated_prediction(target_sentence, context_text)
         st.divider()
