@@ -77,6 +77,42 @@ def simulated_prediction(target: str, context: str) -> tuple[str, int, int]:
     return label, biased_score, 100 - biased_score
 
 
+EXAMPLES = {
+    "Biased example": {
+        "target": "The mayor’s reckless decision devastated the community, critics said.",
+        "article": (
+            "Residents gathered outside city hall on Tuesday to discuss the new budget. "
+            "The mayor’s reckless decision devastated the community, critics said. "
+            "The mayor’s office said the changes were intended to reduce costs. "
+            "City council members are expected to review the plan next month."
+        ),
+    },
+    "Non-biased example": {
+        "target": "The city council approved the revised transportation budget on Tuesday.",
+        "article": (
+            "City council members met on Tuesday to review the proposed budget. "
+            "The city council approved the revised transportation budget on Tuesday. "
+            "The plan allocates funds for road maintenance and public transit. "
+            "Officials said implementation will begin next month."
+        ),
+    },
+}
+
+
+def load_example() -> None:
+    example_name = st.session_state.get("example_choice", "Custom text")
+    if example_name in EXAMPLES:
+        st.session_state["target_sentence"] = EXAMPLES[example_name]["target"]
+        st.session_state["article_text"] = EXAMPLES[example_name]["article"]
+
+
+st.selectbox(
+    "Load a seeded example (optional)",
+    ["Custom text", *EXAMPLES.keys()],
+    key="example_choice",
+    on_change=load_example,
+)
+
 with st.container(border=True):
     st.markdown('<div class="panel-title">News text</div>', unsafe_allow_html=True)
     left, right = st.columns([0.9, 1.1], gap="large")
@@ -138,31 +174,6 @@ if analyze:
             context_text = article_text
         else:
             st.success(f"Target located in article sentence {target_index + 1} of {len(article_sentences)}.")
-
-        st.markdown("**Input path**")
-        st.code(
-            f"Target x_t: {target_sentence.strip()}\n"
-            f"Article sentences: {len(article_sentences)}\n"
-            f"Context before: {len(previous)} sentence(s)\n"
-            f"Context after: {len(following)} sentence(s)\n"
-            "Notebook 04 limits: target 128 tokens; context 384 tokens",
-            language="text",
-        )
-        st.caption(
-            "When both context sides are available, notebook 04 tokenizes preceding and following text as a paired input; "
-            "otherwise it tokenizes the available side."
-        )
-
-        st.markdown("**Gated Hierarchical Context Fusion — equations from the paper and notebook 04**")
-        st.latex(r"h_t = \operatorname{Encoder}(x_t, <s>),\quad h_c = \operatorname{Encoder}(x_c, <s>)\quad h_t,h_c\in\mathbb{R}^{768}")
-        st.latex(r"p_c = \tanh(W_c h_c + b_c)")
-        st.latex(r"g = \sigma(W_g [h_t; p_c] + b_g)")
-        st.latex(r"h_f = \operatorname{LayerNorm}(h_t + g \odot p_c)")
-        st.latex(r"z = \operatorname{ClassifierHead}(h_f),\quad p = \operatorname{softmax}(z),\quad \hat{y}=\arg\max_k p_k")
-        st.caption(
-            "This screen illustrates the trained model’s computation graph. It does not calculate the learned vectors, gate values, "
-            "or classifier logits because trained checkpoints are not connected to this prototype."
-        )
 
         label, biased_score, nonbiased_score = simulated_prediction(target_sentence, context_text)
         st.divider()
